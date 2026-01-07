@@ -1,12 +1,11 @@
-from fastapi import Depends
-from sqlalchemy.orm import Session
 from functools import lru_cache
 
-from .llm import get_llm_client
 from src.ingestion.embedding import get_embedding_model
-from .reranker import get_reranker_model
+
+from .llm import get_llm_client
 from .rag import RAGEngine
-from src.db.session import get_db
+from .reranker import get_reranker_model
+
 
 @lru_cache(maxsize=1)
 def get_rag_engine() -> RAGEngine:

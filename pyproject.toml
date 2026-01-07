@@ -2,7 +2,7 @@
 name = "rag-docs-system"
 version = "0.1.0"
 description = "RAG Q&A system for technical documentation"
-requires-python = ">=3.8"
+requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.108.0",
     "uvicorn[standard]>=0.25.0",
@@ -58,3 +58,10 @@ ignore = ["E501"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["src"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+exclude = ["src/web/history/models.py"]

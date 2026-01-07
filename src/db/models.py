@@ -1,22 +1,23 @@
 import datetime
+
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
-    Column,
+    JSON,
     BigInteger,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
     Integer,
+    LargeBinary,
     String,
     Text,
-    DateTime,
-    ForeignKey,
     UniqueConstraint,
-    Index,
-    JSON,
-    LargeBinary,
-    Float
 )
-from sqlalchemy.orm import declarative_base, relationship
-from pgvector.sqlalchemy import Vector
+from sqlalchemy.orm import DeclarativeBase, relationship
 
-Base = declarative_base()
+class Base(DeclarativeBase):
+    pass
 
 class Document(Base):
     __tablename__ = 'documents'

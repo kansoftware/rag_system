@@ -1,8 +1,10 @@
 import argparse
 import os
-from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor
+from pathlib import Path
+
 from .html2md import HTMLConverter
+
 
 def process_file(file_info):
     """Обрабатывает один файл. Обертка для ProcessPoolExecutor."""

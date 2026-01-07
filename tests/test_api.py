@@ -1,14 +1,15 @@
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
 import pytest_asyncio
-from unittest.mock import AsyncMock, MagicMock
-from fastapi.testclient import TestClient
-from httpx import AsyncClient, ASGITransport
+from httpx import ASGITransport, AsyncClient
+
+import src.api.routes as routes_module
 
 # Важно: импортируем `app` и зависимости до того, как моки их заменят
 from src.api.dependencies import get_rag_engine
 from src.api.main import app
 from src.api.rag import RAGEngine
-import src.api.routes as routes_module
 
 # --- Моки для ML моделей и зависимостей ---
 

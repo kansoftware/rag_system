@@ -1,5 +1,5 @@
-import os
 from pathlib import Path
+
 from src.config import settings
 
 BASE_DIR = Path(__file__).resolve().parent.parent

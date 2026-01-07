@@ -1,15 +1,18 @@
-from fastapi import APIRouter, Depends, HTTPException, Request as FastAPIRequest
-from sqlalchemy.orm import Session
-from typing import Union, cast
 import json
+from typing import Annotated, Union, cast
 
-from src.db.session import get_db
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi import Request as FastAPIRequest
+from sqlalchemy.orm import Session
+
 from src.db.models import QueryHistory
-from .schemas import QueryRequest, QueryResponse, FallbackResponse, LLMInfo
-from .rag import RAGEngine
-from .llm import get_llm_client
+from src.db.session import get_db
 from src.ingestion.embedding import get_embedding_model
+
 from .dependencies import get_rag_engine
+from .llm import get_llm_client
+from .rag import RAGEngine
+from .schemas import FallbackResponse, LLMInfo, QueryRequest, QueryResponse
 
 router = APIRouter(prefix="/api/v1", tags=["RAG"])
 
@@ -43,8 +46,8 @@ async def query_endpoint(
     request: QueryRequest,
     # TODO: Заменить на реальную аутентификацию
     fastapi_request: FastAPIRequest,
-    db: Session = Depends(get_db),
-    rag_engine: RAGEngine = Depends(get_rag_engine)
+    db: Annotated[Session, Depends(get_db)],
+    rag_engine: Annotated[RAGEngine, Depends(get_rag_engine)]
 ):
     """
     Основной эндпоинт для выполнения RAG-запросов.
@@ -94,4 +97,4 @@ async def query_endpoint(
         raise HTTPException(
             status_code=500,
             detail="An internal error occurred while processing the request."
-        )
+        ) from e

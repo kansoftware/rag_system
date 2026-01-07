@@ -1,5 +1,8 @@
-from django.db import models
+# mypy: ignore-errors
+
 from django.contrib.auth.models import User
+from django.db import models
+
 # pgvector.django не нужен, так как мы не используем Django ORM для записи
 # from pgvector.django import VectorField
 

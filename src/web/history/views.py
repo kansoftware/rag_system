@@ -1,11 +1,11 @@
 import httpx
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import render, get_object_or_404, redirect
 from django.core.paginator import Paginator
-from django.conf import settings
+from django.shortcuts import get_object_or_404, redirect, render
+
+from src.config import settings as api_settings
 
 from .models import QueryHistory
-from src.config import settings as api_settings
 
 API_BASE_URL = f"http://{api_settings.API_HOST}:{api_settings.API_PORT}/api/v1"
 

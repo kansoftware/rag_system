@@ -1,14 +1,16 @@
-import time
 import re
-from typing import List, Dict, Any
-from sqlalchemy.orm import Session
-from sqlalchemy import text
+import time
+from typing import Any, Dict, List, cast
 
-from src.config import settings
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+
 from src.db.models import Chunk, Document
 from src.ingestion.embedding import EmbeddingModel
+
 from .llm import LLMClient
 from .reranker import RerankerModel
+
 
 class RAGEngine:
     def __init__(
@@ -132,12 +134,12 @@ ANSWER (with citations):"""
         avg_rerank_score = sum(s.get('rerank_score', 0) for s in cited_sources) / len(cited_sources)
         citation_ratio = len(cited_sources) / len(sources)
         
-        penalty = 0
+        penalty = 0.0
         if any(phrase in response_text.lower() for phrase in ["not found", "unclear", "insufficient"]):
             penalty = 0.3
             
         confidence = (avg_rerank_score * 0.7 + citation_ratio * 0.3) - penalty
-        return max(0.0, min(1.0, confidence))
+        return cast(float, max(0.0, min(1.0, confidence)))
 
     def _generate_fallback_response(self, chunks: List[Dict], warning: str, confidence: float = 0.0, total_time: float = 0.0) -> Dict:
         return {

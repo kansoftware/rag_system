@@ -1,5 +1,8 @@
 import asyncio
+
+from typing import cast
 import httpx
+
 from src.config import settings
 
 # Глобальный лок для обеспечения последовательного доступа к LLM
@@ -54,7 +57,7 @@ class LLMClient:
                 data = response.json()
                 content = data["choices"][0]["message"]["content"]
                 print("LLM response generated successfully.")
-                return content
+                return cast(str, content)
 
             except httpx.HTTPStatusError as e:
                 print(f"Error communicating with LLM: {e.response.status_code} - {e.response.text}")

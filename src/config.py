@@ -1,12 +1,13 @@
 from pydantic_settings import BaseSettings
 
+
 class Settings(BaseSettings):
     # PostgreSQL
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: int = 5432
     POSTGRES_DB: str = "rag_docs"
     POSTGRES_USER: str = "rag_user"
-    POSTGRES_PASSWORD: str = "changeme"
+    POSTGRES_PASSWORD: str
 
     # LLM
     LLM_PROVIDER: str = "lmstudio"
@@ -30,7 +31,7 @@ class Settings(BaseSettings):
     MIN_CONFIDENCE: float = 0.70
 
     # Django
-    DJANGO_SECRET_KEY: str = "your-super-secret-key-here"
+    DJANGO_SECRET_KEY: str
     DJANGO_DEBUG: bool = True
     DJANGO_ALLOWED_HOSTS: str = "localhost,127.0.0.1"
 
@@ -46,4 +47,4 @@ class Settings(BaseSettings):
         env_file = ".env"
         env_file_encoding = "utf-8"
 
-settings = Settings()
+settings = Settings()  # type: ignore[call-arg]

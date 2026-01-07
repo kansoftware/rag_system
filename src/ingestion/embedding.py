@@ -1,7 +1,10 @@
-from typing import List
+from typing import List, cast
+
 import torch
 from sentence_transformers import SentenceTransformer
+
 from src.config import settings
+
 
 class EmbeddingModel:
     """
@@ -37,7 +40,7 @@ class EmbeddingModel:
         )
         
         print("Embeddings generated.")
-        return embeddings.tolist()
+        return cast(List[List[float]], embeddings.tolist())
 
 _embedding_model = None
 

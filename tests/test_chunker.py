@@ -1,5 +1,7 @@
 import pytest
+
 from src.ingestion.chunking import MarkdownChunker
+
 
 @pytest.fixture(scope="module")
 def chunker():

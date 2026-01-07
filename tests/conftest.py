@@ -1,5 +1,5 @@
-import sys
 import os
+import sys
 
 # Добавляем корневую директорию проекта в sys.path ПЕРЕД всеми остальными импортами
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -7,9 +7,10 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+
+from src.api.main import app
 from src.db.models import Base
 from src.db.session import get_db
-from src.api.main import app
 
 # --- Настройка тестовой базы данных SQLite in-memory ---
 

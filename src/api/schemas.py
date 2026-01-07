@@ -1,5 +1,7 @@
+from typing import List, Optional
+
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
+
 
 class QueryRequest(BaseModel):
     query: str = Field(..., min_length=3, description="Текст запроса пользователя")

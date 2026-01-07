@@ -1,5 +1,6 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+
 from src.config import settings
 
 # Создаем "движок" SQLAlchemy

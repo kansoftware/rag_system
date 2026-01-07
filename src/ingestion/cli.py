@@ -1,6 +1,8 @@
 import argparse
 from pathlib import Path
+
 from .pipeline import IngestionPipeline
+
 
 def main():
     parser = argparse.ArgumentParser(description="Ingestion pipeline for RAG system.")

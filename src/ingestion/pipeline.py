@@ -1,13 +1,16 @@
-from typing import List
 from pathlib import Path
+from typing import List
+
 from sqlalchemy.orm import Session
 from tqdm import tqdm
 
-from src.db.models import Document, Chunk
+from src.db.models import Chunk, Document
 from src.db.session import SessionLocal
-from .dedup import Deduplicator, compute_content_hash
+
 from .chunking import MarkdownChunker
+from .dedup import Deduplicator, compute_content_hash
 from .embedding import get_embedding_model
+
 
 class IngestionPipeline:
     def __init__(self):

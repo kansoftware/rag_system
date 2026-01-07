@@ -1,7 +1,10 @@
-from typing import List, Dict
+from typing import Dict, List
+
 import torch
 from FlagEmbedding import FlagReranker
+
 from src.config import settings
+
 
 class RerankerModel:
     """
@@ -35,7 +38,7 @@ class RerankerModel:
 
         if scores is not None:
             # Добавляем rerank_score к каждому чанку
-            for chunk, score in zip(chunks, scores):
+            for chunk, score in zip(chunks, scores, strict=True):
                 chunk['rerank_score'] = float(score)
 
         # Сортируем чанки по убыванию rerank_score

@@ -1,9 +1,10 @@
 from fastapi import FastAPI
-from .routes import router as api_router
-from .llm import get_llm_client, close_llm_client
-from src.ingestion.embedding import get_embedding_model
-from .reranker import get_reranker_model
 
+from src.ingestion.embedding import get_embedding_model
+
+from .llm import close_llm_client, get_llm_client
+from .reranker import get_reranker_model
+from .routes import router as api_router
 
 app = FastAPI(
     title="RAG System API",

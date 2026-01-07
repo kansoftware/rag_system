@@ -1,8 +1,11 @@
 import hashlib
-import unicodedata
 import re
+import unicodedata
+
 from sqlalchemy.orm import Session
+
 from src.db.models import Document
+
 
 def normalize_text(text: str) -> str:
     """

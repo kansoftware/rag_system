@@ -1,7 +1,8 @@
 import re
-from bs4 import BeautifulSoup
-import trafilatura
 from typing import Optional
+
+import trafilatura
+from bs4 import BeautifulSoup
 from markdownify import markdownify as md
 
 # Элементы и классы/ID для удаления
@@ -17,7 +18,6 @@ class HTMLConverter:
         """
         Полный цикл очистки HTML и конвертации в Markdown.
         """
-        from typing import Optional
         # 1. Попытка извлечь основной контент с помощью trafilatura
         main_content_html = trafilatura.extract(
             html_content,

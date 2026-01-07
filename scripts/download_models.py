@@ -1,5 +1,5 @@
-from sentence_transformers import SentenceTransformer
 from FlagEmbedding import FlagReranker
+from sentence_transformers import SentenceTransformer
 
 EMBEDDING_MODEL = 'BAAI/bge-m3'
 RERANKER_MODEL = 'BAAI/bge-reranker-v2-m3'
