@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+
+{% block title %}Новый запрос{% endblock %}
+
+{% block content %}
+    <h2>Задать вопрос</h2>
+    <form method="post">
+        {% csrf_token %}
+        <textarea name="query" rows="4" cols="80" required>{{ query|default:'' }}</textarea>
+        <br>
+        <button type="submit">Отправить</button>
+    </form>
+
+    {% if error %}
+        <p class="error">{{ error }}</p>
+    {% endif %}
+
+    {% if result %}
+        <hr>
+        <h3>Ответ</h3>
+        <div>
+            <!-- Здесь будет рендериться Markdown -->
+            {{ result.response_md|linebreaks }}
+        </div>
+        <h4>Источники:</h4>
+        <ul>
+        {% for source in result.sources %}
+            <li>
+                <strong>{{ source.title }}</strong> (Score: {{ source.rerank_score|floatformat:2 }})
+                <p>{{ source.excerpt }}</p>
+                <a href="{{ source.url }}" target="_blank">Ссылка</a>
+            </li>
+        {% endfor %}
+        </ul>
+        <p><small>Уверенность: {{ result.confidence_score|floatformat:2 }}</small></p>
+    {% endif %}
+{% endblock %}

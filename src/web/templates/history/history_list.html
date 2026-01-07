@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block title %}История запросов{% endblock %}
+
+{% block content %}
+    <h2>История запросов</h2>
+    <ul>
+    {% for item in page_obj %}
+        <li>
+            <a href="{% url 'history_detail' item.pk %}">{{ item.query_text|truncatechars:80 }}</a>
+            <small>({{ item.created_at }})</small>
+        </li>
+    {% empty %}
+        <li>История пуста.</li>
+    {% endfor %}
+    </ul>
+
+    <div class="pagination">
+        {% if page_obj.has_previous %}
+            <a href="?page=1">&laquo; первая</a>
+            <a href="?page={{ page_obj.previous_page_number }}">предыдущая</a>
+        {% endif %}
+
+        <span>
+            Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}.
+        </span>
+
+        {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}">следующая</a>
+            <a href="?page={{ page_obj.paginator.num_pages }}">последняя &raquo;</a>
+        {% endif %}
+    </div>
+{% endblock %}

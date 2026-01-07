@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}RAG-система{% endblock %}</title>
+    <style>
+        body { font-family: sans-serif; margin: 2em; }
+        nav { margin-bottom: 1em; }
+        .content { margin-top: 1em; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>RAG-система</h1>
+        <nav>
+            <a href="{% url 'home' %}">Главная</a> |
+            <a href="{% url 'history_list' %}">История</a>
+            {% if user.is_authenticated %}
+                | <span>Пользователь: {{ user.username }}</span>
+                | <a href="{% url 'logout' %}">Выйти</a>
+            {% else %}
+                | <a href="{% url 'login' %}">Войти</a>
+            {% endif %}
+        </nav>
+    </header>
+    <main class="content">
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

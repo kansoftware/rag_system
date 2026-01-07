@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block title %}Детали запроса{% endblock %}
+
+{% block content %}
+    <h2>Детали запроса</h2>
+    <p><strong>Дата:</strong> {{ query.created_at }}</p>
+    <p><strong>Запрос:</strong> {{ query.query_text }}</p>
+    <hr>
+    <h3>Ответ:</h3>
+    <div>{{ query.response_md|linebreaks }}</div>
+    
+    <h4>Источники:</h4>
+    <ul>
+    {% for source in query.sources_json %}
+        <li>
+            <strong>{{ source.title }}</strong> (Score: {{ source.rerank_score|floatformat:2 }})
+            <p>{{ source.excerpt }}</p>
+            {% if source.url %}<a href="{{ source.url }}" target="_blank">Ссылка</a>{% endif %}
+        </li>
+    {% endfor %}
+    </ul>
+    <p><small>Уверенность: {{ query.confidence_score|floatformat:2 }} | Модель: {{ query.llm_model }}</small></p>
+    <hr>
+    <a href="{% url 'history_list' %}">Назад к истории</a>
+{% endblock %}

@@ -1,0 +1,23 @@
+[Unit]
+Description=RAG Web UI (Django)
+After=rag-api.service
+Requires=rag-api.service
+
+[Service]
+Type=exec
+User=rag
+Group=rag
+WorkingDirectory=/opt/rag-system
+
+Environment="PATH=/opt/rag-system/venv/bin"
+EnvironmentFile=/opt/rag-system/.env
+
+ExecStart=/opt/rag-system/venv/bin/gunicorn src.web.app.wsgi:application \
+  --workers 3 \
+  --bind 127.0.0.1:8000
+
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
