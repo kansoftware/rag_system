@@ -1,4 +1,9 @@
 from pydantic_settings import BaseSettings
+from dotenv import load_dotenv
+import os
+
+# Загружаем переменные из .env файла
+load_dotenv()
 
 
 class Settings(BaseSettings):
@@ -29,6 +34,10 @@ class Settings(BaseSettings):
     TOP_K_INITIAL: int = 30
     TOP_K_FINAL: int = 7
     MIN_CONFIDENCE: float = 0.70
+    
+    # Chunking
+    CHUNK_SIZE: int = 700
+    CHUNK_OVERLAP: int = 100
 
     # Django
     DJANGO_SECRET_KEY: str
@@ -43,8 +52,11 @@ class Settings(BaseSettings):
     def DATABASE_URL(self) -> str:
         return f"postgresql+psycopg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
 
-settings = Settings()  # type: ignore[call-arg]
+model_config = {
+    "env_file": ".env",
+    "env_file_encoding": "utf-8",
+    "extra": "ignore",  # Игнорировать дополнительные поля
+}
+
+settings = Settings() # type: ignore[call-arg]
