@@ -117,3 +117,14 @@ pytest tests/test_api.py
 ```bash
 # Пример команды для загрузки документов
 python src/ingestion/cli.py --source-dir /path/to/your/markdown/files --domain "my-docs"
+
+## HTML to Markdown Converter
+
+Для конвертации HTML-документов в формат Markdown используется специальный инструмент в модуле `src/convert/`. Это позволяет подготовить документы в нужном формате для последующей загрузки в систему.
+
+```bash
+# Пример команды для конвертации HTML-файлов в Markdown
+python src/convert/cli.py --input /path/to/html/files --output /path/to/output/markdown/files
+```
+
+Конвертер использует библиотеки `trafilatura`, `beautifulsoup4` и `markdownify` для извлечения основного контента из HTML и преобразования его в Markdown, при этом удаляя ненужные элементы (навигация, футеры, рекламные блоки и т.д.).
