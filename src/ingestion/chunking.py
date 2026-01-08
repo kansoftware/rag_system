@@ -11,8 +11,8 @@ class MarkdownChunker:
     """
     def __init__(
         self,
-        chunk_size: int = 700,
-        chunk_overlap: int = 100,
+        chunk_size: int = 1500,
+        chunk_overlap: int = 300,
         model_name: str = "BAAI/bge-m3"
     ):
         if chunk_overlap >= chunk_size:

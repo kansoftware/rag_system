@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from tqdm import tqdm
 
 from src.db.models import Chunk, Document
+from src.config import settings
 from src.db.session import SessionLocal
 
 from .chunking import MarkdownChunker
@@ -14,7 +15,10 @@ from .embedding import get_embedding_model
 
 class IngestionPipeline:
     def __init__(self):
-        self.chunker = MarkdownChunker()
+        self.chunker = MarkdownChunker(
+            chunk_size=settings.CHUNK_SIZE,
+            chunk_overlap=settings.CHUNK_OVERLAP,
+        )
         self.embedding_model = get_embedding_model()
         self.db: Session = SessionLocal()
         self.deduplicator = Deduplicator(self.db)

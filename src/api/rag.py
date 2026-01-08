@@ -2,6 +2,7 @@ import re
 import time
 from typing import Any, Dict, List, cast
 
+from transformers import AutoTokenizer
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -22,12 +23,14 @@ class RAGEngine:
         self.embedding_model = embedding_model
         self.reranker_model = reranker_model
         self.llm = llm_client
+        self.tokenizer = AutoTokenizer.from_pretrained(reranker_model.model_name) # Используем ту же модель, что и ре-ранкер/эмбеддер
 
     async def query(
         self,
         db: Session,
         query_text: str,
         query_embedding: List[float],
+        embed_time_ms: float,
         top_k_initial: int,
         top_k_final: int,
         min_confidence: float,
@@ -55,15 +58,18 @@ class RAGEngine:
 
         verified_sources = self._verify_citations(llm_response_text, final_chunks)
         confidence = self._calculate_confidence(verified_sources, llm_response_text)
+        
+        print(f"Confidence: {confidence:.2f} (min_confidence: {min_confidence})")
 
         total_time = time.time() - start_time
         
         if confidence < min_confidence:
             return self._generate_fallback_response(
-                final_chunks,
-                f"Confidence score {confidence:.2f} is below threshold {min_confidence}.",
-                confidence,
-                total_time
+                chunks=final_chunks,
+                warning=f"Confidence score {confidence:.2f} is below threshold {min_confidence}.",
+                embed_time_ms=embed_time_ms,
+                confidence=confidence,
+                total_time=total_time
             )
 
         return {
@@ -71,6 +77,7 @@ class RAGEngine:
             "confidence_score": confidence,
             "sources": verified_sources,
             "timings_ms": {
+                "embed": embed_time_ms,
                 "retrieve": retrieve_time * 1000,
                 "rerank": rerank_time * 1000,
                 "llm": llm_time * 1000,
@@ -79,9 +86,10 @@ class RAGEngine:
         }
 
     def _vector_search(self, db: Session, query_embedding: List[float], top_k: int) -> List[Dict]:
+        # Используем косинусное расстояние, так как индекс создан с vector_cosine_ops
         results = db.query(
             Chunk,
-            (Chunk.embedding.l2_distance(query_embedding)).label('distance')
+            (Chunk.embedding.cosine_distance(query_embedding)).label('distance')
         ).join(Document).order_by(text('distance asc')).limit(top_k).all()
         
         return [
@@ -91,7 +99,7 @@ class RAGEngine:
                 "text": r.Chunk.chunk_text,
                 "title": r.Chunk.document.title,
                 "url": r.Chunk.document.source_url,
-                "similarity": 1 - r.distance,
+                "similarity": max(0.0, 1.0 - float(r.distance)),
             } for r in results
         ]
         
@@ -100,23 +108,86 @@ class RAGEngine:
             f"[SOURCE {i+1}] (Title: {c.get('title')}, URL: {c.get('url')})\n{c['text']}"
             for i, c in enumerate(chunks)
         ])
-        
-        return f"""You are a technical documentation assistant. Answer ONLY based on the provided sources.
-STRICT RULES:
-1. NEVER make up information.
-2. ALWAYS cite sources using [SOURCE N] format for each statement.
-3. If information is not in sources, say "Information not found in the provided sources."
 
+        prompt = f"""You are a world-class technical documentation assistant.
+Your task is to answer user questions based ONLY on the provided information.
+
+**// STRICT RULES //**
+1.  **NEVER INVENT INFORMATION.** You must ground every single statement in the PROVIDED SOURCES.
+2.  **CITE EACH SENTENCE.** Every sentence you write must end with a citation, like `[SOURCE 1]` or `[SOURCE 1, 2]`.
+3.  **SYNTHESIZE, DON'T COPY.** Explain concepts in your own words. If the user asks for a code example, write a clear, working example based on the information from the sources.
+4.  **HANDLE MISSING INFORMATION.** If and only if the sources do not contain any relevant information to answer the question, you must respond with the single sentence: "Information not found in the provided sources." Do not add any other text.
+
+**// EXAMPLE OF A GOOD ANSWER //**
+*USER QUESTION:* How do I use boost::bimap?
+
+*YOUR ANSWER:*
+Boost.Bimap provides a bidirectional map, allowing lookups by either key or value [SOURCE 2]. To use it, include the `<boost/bimap.hpp>` header [SOURCE 1].
+
+Here is a basic example:
+```cpp
+#include <boost/bimap.hpp>
+#include <iostream>
+#include <string>
+
+int main() {{
+    boost::bimap<int, std::string> bm;
+    bm.insert({{ 1, "one" }});
+    bm.insert({{ 2, "two" }});
+
+    // Find by key
+    std::cout << bm.left.at(1) << std::endl; // "one"
+
+    // Find by value
+    std::cout << bm.right.at("two") << std::endl; // 2
+}}
+```
+This example demonstrates creating a bimap and accessing its left and right views for lookups [SOURCE 1, 3]. More complex examples can be found in the Boost documentation [SOURCE 4].
+**// END OF EXAMPLE //**
+
+**// USER'S TASK //**
 USER QUESTION: {query}
 
 PROVIDED SOURCES:
+---
 {context}
+---
 
-ANSWER (with citations):"""
+ANSWER (with citations, following all rules and the example format):"""
+
+        # --- Detailed Logging for Prompt ---
+        print("\n--- [DEBUG: LLM Prompt] ---")
+        print(f"User Query: {query}")
+        print(f"Number of chunks provided: {len(chunks)}")
+        # Больше не логируем контент, чтобы избежать путаницы
+        for i, chunk in enumerate(chunks):
+            token_count = len(self.tokenizer.encode(chunk['text']))
+            print(f"  - Chunk {i+1} (rerank_score={chunk.get('rerank_score', 0.0):.4f}, tokens={token_count})")
+        print(f"Total tokens in context: {len(self.tokenizer.encode(context))}")
+        print("--- [END DEBUG] ---\n")
+        
+        return prompt
 
     def _verify_citations(self, response_text: str, chunks: List[Dict]) -> List[Dict]:
-        cited_indices = {int(m.group(1)) for m in re.finditer(r'\[SOURCE (\d+)\]', response_text)}
+        cited_indices = set()
         
+        # Ищем одиночные цитаты: [SOURCE 1]
+        single_citations = re.finditer(r'\[SOURCE (\d+)\]', response_text)
+        for m in single_citations:
+            cited_indices.add(int(m.group(1)))
+            
+        # Ищем списки цитат: [SOURCE 1, 2, 3]
+        list_citations = re.finditer(r'\[SOURCE ([\d,\s]+)\]', response_text)
+        for m in list_citations:
+            indices_str = m.group(1).split(',')
+            for index in indices_str:
+                try:
+                    cited_indices.add(int(index.strip()))
+                except ValueError:
+                    pass # Игнорируем некорректные значения
+
+        print(f"[DEBUG: Citations] Found indices: {cited_indices}")
+
         for i, chunk in enumerate(chunks):
             chunk["source_id"] = i + 1
             chunk["cited"] = (i + 1) in cited_indices
@@ -125,27 +196,69 @@ ANSWER (with citations):"""
 
     def _calculate_confidence(self, sources: List[Dict], response_text: str) -> float:
         if not sources:
+            print("[DEBUG: Confidence] No sources provided, returning 0.0")
             return 0.0
-            
+
         cited_sources = [s for s in sources if s.get("cited")]
         if not cited_sources:
+            print("[DEBUG: Confidence] No cited sources, returning 0.1")
             return 0.1
 
-        avg_rerank_score = sum(s.get('rerank_score', 0) for s in cited_sources) / len(cited_sources)
-        citation_ratio = len(cited_sources) / len(sources)
+        # --- Rerank Score Calculation ---
+        rerank_scores = [s.get('rerank_score', 0.0) for s in cited_sources]
+        avg_rerank_score = sum(rerank_scores) / len(rerank_scores)
         
-        penalty = 0.0
-        if any(phrase in response_text.lower() for phrase in ["not found", "unclear", "insufficient"]):
-            penalty = 0.3
-            
-        confidence = (avg_rerank_score * 0.7 + citation_ratio * 0.3) - penalty
-        return cast(float, max(0.0, min(1.0, confidence)))
+        is_fallback_score = False
+        if avg_rerank_score <= 0.0:
+            similarities = [s.get('similarity', 0.0) for s in cited_sources]
+            avg_rerank_score = sum(similarities) / len(similarities) if similarities else 0.0
+            is_fallback_score = True
+            print(f"[DEBUG: Confidence] Used fallback similarity score: {avg_rerank_score:.4f}")
 
-    def _generate_fallback_response(self, chunks: List[Dict], warning: str, confidence: float = 0.0, total_time: float = 0.0) -> Dict:
+        # --- Citation Ratio ---
+        citation_ratio = len(cited_sources) / len(sources)
+
+        # --- Penalty for uncertainty ---
+        penalty = 0.0
+        lower_response = response_text.lower()
+        if any(phrase in lower_response for phrase in ["not found", "не найдено", "недостаточно информации"]):
+            penalty = 0.4
+
+        # --- Base Confidence ---
+        base_confidence = 0.3
+
+        # --- Final Calculation ---
+        confidence_formula = (avg_rerank_score * 0.6 + citation_ratio * 0.4) - penalty
+        confidence = max(base_confidence, confidence_formula)
+        final_confidence = cast(float, max(0.0, min(1.0, confidence)))
+
+        # --- Detailed Logging ---
+        print("\n--- [DEBUG: Confidence Calculation] ---")
+        print(f"Cited sources: {len(cited_sources)} out of {len(sources)}")
+        print(f"Average Rerank Score: {avg_rerank_score:.4f} (Fallback used: {is_fallback_score})")
+        print(f"Citation Ratio: {citation_ratio:.4f}")
+        print(f"Uncertainty Penalty: {penalty:.2f}")
+        print(f"Base Confidence: {base_confidence:.2f}")
+        print(f"Pre-clamp Confidence (Formula): {confidence_formula:.4f}")
+        print(f"Final Confidence: {final_confidence:.4f}")
+        print("--- [END DEBUG] ---\n")
+
+        return final_confidence
+
+    def _generate_fallback_response(self, chunks: List[Dict], warning: str, embed_time_ms: float, confidence: float = 0.0, total_time: float = 0.0) -> Dict:
+        # В fallback-режиме остальные тайминги нерелевантны или равны нулю
+        timings = {
+            "embed": embed_time_ms,
+            "retrieve": 0,
+            "rerank": 0,
+            "llm": 0,
+            "total": total_time * 1000,
+        }
+        
         return {
             "response_md": "К сожалению, я не могу дать уверенный ответ на основе доступной информации. Пожалуйста, проверьте следующие наиболее релевантные источники.",
             "confidence_score": confidence,
             "sources": chunks,
-            "timings_ms": {"total": total_time * 1000},
+            "timings_ms": timings,
             "warnings": [warning, "fallback"]
         }

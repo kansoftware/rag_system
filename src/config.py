@@ -1,18 +1,21 @@
-from pydantic_settings import BaseSettings
-from dotenv import load_dotenv
+from pydantic_settings import BaseSettings, SettingsConfigDict
 import os
-
-# Загружаем переменные из .env файла
-load_dotenv()
 
 
 class Settings(BaseSettings):
+    # Конфигурация модели Pydantic для чтения из .env файла
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore"
+    )
+
     # PostgreSQL
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: int = 5432
     POSTGRES_DB: str = "rag_docs"
     POSTGRES_USER: str = "rag_user"
-    POSTGRES_PASSWORD: str
+    POSTGRES_PASSWORD: str = ""
 
     # LLM
     LLM_PROVIDER: str = "lmstudio"
@@ -27,7 +30,7 @@ class Settings(BaseSettings):
     EMBEDDING_BATCH_SIZE: int = 32
     
     # Reranker
-    RERANKER_MODEL: str = "BAAI/bge-reranker-v2-m3"
+    RERANKER_MODEL: str = "sentence-transformers/ms-marco-MiniLM-L-12-v2"
     RERANKER_DEVICE: str = "cpu"
 
     # RAG
@@ -40,7 +43,7 @@ class Settings(BaseSettings):
     CHUNK_OVERLAP: int = 100
 
     # Django
-    DJANGO_SECRET_KEY: str
+    DJANGO_SECRET_KEY: str = ""
     DJANGO_DEBUG: bool = True
     DJANGO_ALLOWED_HOSTS: str = "localhost,127.0.0.1"
 
@@ -52,11 +55,5 @@ class Settings(BaseSettings):
     def DATABASE_URL(self) -> str:
         return f"postgresql+psycopg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
-
-model_config = {
-    "env_file": ".env",
-    "env_file_encoding": "utf-8",
-    "extra": "ignore",  # Игнорировать дополнительные поля
-}
-
-settings = Settings() # type: ignore[call-arg]
+# Создаем единственный экземпляр настроек, который будет использоваться во всем приложении
+settings = Settings()

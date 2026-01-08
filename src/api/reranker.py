@@ -1,14 +1,15 @@
 from typing import Dict, List
-
 import torch
-from FlagEmbedding import FlagReranker
+from sentence_transformers import CrossEncoder
 
 from src.config import settings
 
 
 class RerankerModel:
     """
-    Класс-обертка для модели ре-ранжирования BAAI/bge-reranker-v2-m3.
+    Класс-обертка для модели ре-ранжирования, использующая sentence-transformers.
+    Модель `ms-marco-MiniLM-L-12-v2` является cross-encoder'ом, который хорошо
+    подходит для задач ре-ранжирования.
     """
     def __init__(self):
         self.model_name = settings.RERANKER_MODEL
@@ -19,8 +20,8 @@ class RerankerModel:
             self.device = 'cpu'
 
         print(f"Initializing reranker model {self.model_name} on device '{self.device}'...")
-        # use_fp16=True ускоряет вычисления на GPU
-        self.model = FlagReranker(self.model_name, use_fp16=True if self.device == 'cuda' else False)
+        # Используем CrossEncoder для моделей ре-ранжирования
+        self.model = CrossEncoder(self.model_name, device=self.device)
         print("Reranker model loaded successfully.")
 
     def rerank(self, query: str, chunks: List[Dict]) -> List[Dict]:
@@ -30,16 +31,29 @@ class RerankerModel:
         if not chunks:
             return []
 
-        # Reranker ожидает пары [запрос, текст_чанка]
-        pairs = [(query, chunk['text']) for chunk in chunks]
+        # sentence-transformers ожидает пары [запрос, текст_чанка]
+        pairs = [(query, chunk['text']) for chunk in chunks if chunk.get('text')]
         
-        print(f"Reranking {len(chunks)} candidates...")
-        scores = self.model.compute_score(pairs, normalize=True)
+        if not pairs:
+            print("Warning: No valid (query, text) pairs found to rerank.")
+            for chunk in chunks:
+                chunk['rerank_score'] = 0.0
+            return chunks
 
-        if scores is not None:
-            # Добавляем rerank_score к каждому чанку
-            for chunk, score in zip(chunks, scores, strict=True):
-                chunk['rerank_score'] = float(score)
+        print(f"Reranking {len(pairs)} candidates with cross-encoder...")
+        
+        # Вычисляем оценки релевантности. Cross-encoder напрямую возвращает оценки.
+        scores = self.model.predict(pairs, show_progress_bar=False)
+
+        # Сопоставляем оценки с чанками, которые были отправлены на обработку
+        valid_chunks = [chunk for chunk in chunks if chunk.get('text')]
+        for chunk, score in zip(valid_chunks, scores):
+            chunk['rerank_score'] = float(score)
+
+        # Для отфильтрованных (невалидных) чанков устанавливаем score в 0
+        for chunk in chunks:
+            if 'rerank_score' not in chunk:
+                chunk['rerank_score'] = 0.0
 
         # Сортируем чанки по убыванию rerank_score
         reranked_chunks = sorted(chunks, key=lambda x: x['rerank_score'], reverse=True)

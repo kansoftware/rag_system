@@ -1,8 +1,8 @@
-from FlagEmbedding import FlagReranker
 from sentence_transformers import SentenceTransformer
 
 EMBEDDING_MODEL = 'BAAI/bge-m3'
-RERANKER_MODEL = 'BAAI/bge-reranker-v2-m3'
+# Заменяем модель ре-ранкера на альтернативную из sentence-transformers
+RERANKER_MODEL = 'sentence-transformers/ms-marco-MiniLM-L-12-v2'
 
 def main():
     """Скачивает и кэширует необходимые модели."""
@@ -11,7 +11,8 @@ def main():
     print("Embedding model cached successfully.")
 
     print(f"Downloading reranker model: {RERANKER_MODEL}...")
-    FlagReranker(RERANKER_MODEL)
+    # Используем SentenceTransformer для загрузки новой модели
+    SentenceTransformer(RERANKER_MODEL)
     print("Reranker model cached successfully.")
 
     print("\nAll models are cached.")

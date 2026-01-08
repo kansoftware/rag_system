@@ -1,5 +1,5 @@
 import asyncio
-
+import re
 from typing import cast
 import httpx
 
@@ -27,11 +27,12 @@ class LLMClient:
         self.client = httpx.AsyncClient(
             base_url=self.base_url,
             headers={
-                "Authorization": f"Bearer {self.api_key}"
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
             },
             timeout=self.timeout
         )
-        print(f"LLM Client initialized for model '{self.model}' at '{self.base_url}'")
+        print(f"LLM Client initialized for model '{self.model}' at '{self.base_url}' provider {self.provider}")
 
     async def generate(self, prompt: str, temperature: float) -> str:
         """
@@ -55,16 +56,19 @@ class LLMClient:
                 response.raise_for_status()
                 
                 data = response.json()
+
+                print( "\n\nresponse.text:\n\n" + response.text + "\n\n")
+
                 content = data["choices"][0]["message"]["content"]
                 print("LLM response generated successfully.")
                 return cast(str, content)
 
             except httpx.HTTPStatusError as e:
                 print(f"Error communicating with LLM: {e.response.status_code} - {e.response.text}")
-                return "Error: Could not get a response from the language model."
+                raise
             except Exception as e:
-                print(f"An unexpected error occurred in LLM client: {e}")
-                return "Error: An unexpected error occurred while communicating with the language model."
+                print(f"An unexpected error occurred in LLMClient: {e}")
+                raise
 
     async def close(self):
         await self.client.aclose()
