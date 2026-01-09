@@ -32,11 +32,13 @@ class Settings(BaseSettings):
     # Reranker
     RERANKER_MODEL: str = "sentence-transformers/ms-marco-MiniLM-L-12-v2"
     RERANKER_DEVICE: str = "cpu"
+    RERANKER_BATCH_SIZE: int = 16
 
     # RAG
     TOP_K_INITIAL: int = 30
     TOP_K_FINAL: int = 7
-    MIN_CONFIDENCE: float = 0.70
+    MIN_CONFIDENCE: float = 0.7
+    ENABLE_RERANKER: bool = True
     
     # Chunking
     CHUNK_SIZE: int = 700

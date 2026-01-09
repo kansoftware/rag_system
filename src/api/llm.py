@@ -41,17 +41,20 @@ class LLMClient:
         async with llm_lock:
             print("LLM lock acquired. Generating response...")
             try:
+                request_body = {
+                    "model": self.model,
+                    "messages": [
+                        {"role": "system", "content": "You are a helpful technical assistant."},
+                        {"role": "user", "content": prompt},
+                    ],
+                    "temperature": temperature,
+                    "max_tokens": 2048,
+                }
+                print(f"--- [DEBUG: LLM Request Body] ---\n{request_body}\n--- [END DEBUG] ---")
+
                 response = await self.client.post(
                     "/chat/completions",
-                    json={
-                        "model": self.model,
-                        "messages": [
-                            {"role": "system", "content": "You are a helpful technical assistant."},
-                            {"role": "user", "content": prompt}
-                        ],
-                        "temperature": temperature,
-                        "max_tokens": 2048,
-                    }
+                    json=request_body,
                 )
                 response.raise_for_status()
                 

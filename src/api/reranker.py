@@ -14,6 +14,7 @@ class RerankerModel:
     def __init__(self):
         self.model_name = settings.RERANKER_MODEL
         self.device = settings.RERANKER_DEVICE
+        self.batch_size = settings.RERANKER_BATCH_SIZE
 
         if self.device == 'cuda' and not torch.cuda.is_available():
             print("Warning: CUDA is not available for reranker. Falling back to CPU.")
@@ -43,7 +44,11 @@ class RerankerModel:
         print(f"Reranking {len(pairs)} candidates with cross-encoder...")
         
         # Вычисляем оценки релевантности. Cross-encoder напрямую возвращает оценки.
-        scores = self.model.predict(pairs, show_progress_bar=False)
+        scores = self.model.predict(
+            pairs,
+            show_progress_bar=False,
+            batch_size=self.batch_size
+        )
 
         # Сопоставляем оценки с чанками, которые были отправлены на обработку
         valid_chunks = [chunk for chunk in chunks if chunk.get('text')]

@@ -1,4 +1,5 @@
 import re
+import asyncio
 import time
 from typing import Any, Dict, List, cast
 
@@ -11,6 +12,7 @@ from src.ingestion.embedding import EmbeddingModel
 
 from .llm import LLMClient
 from .reranker import RerankerModel
+from src.config import settings
 
 
 class RAGEngine:
@@ -44,11 +46,26 @@ class RAGEngine:
         retrieve_time = time.time() - start_time
 
         if not candidates:
-            return self._generate_fallback_response([], "No relevant documents found.")
+            return self._generate_fallback_response([], "No relevant documents found.", embed_time_ms=embed_time_ms)
 
-        reranked_chunks = self.reranker_model.rerank(query_text, candidates)
-        final_chunks = reranked_chunks[:top_k_final]
-        rerank_time = time.time() - start_time - retrieve_time
+        self._log_chunks(candidates, "Initial retrieval", "similarity")
+        
+        rerank_time_start = time.time()
+
+        if settings.ENABLE_RERANKER:
+            reranked_chunks = await asyncio.to_thread(self.reranker_model.rerank, query_text, candidates)
+            self._log_chunks(reranked_chunks, "After Reranking", "rerank_score")
+        else:
+            print("\n--- [INFO] Reranking is disabled. Using similarity scores. ---\n")
+            # Для совместимости с остальным кодом, который ожидает 'rerank_score'
+            for chunk in candidates:
+                chunk['rerank_score'] = chunk.get('similarity', 0.0)
+            reranked_chunks = sorted(candidates, key=lambda x: x['rerank_score'], reverse=True)
+
+        # Сначала фильтруем по порогу, потом берем топ
+        confident_chunks = [chunk for chunk in reranked_chunks if chunk.get('rerank_score', 0.0) > 0.7]
+        final_chunks = confident_chunks[:top_k_final]
+        rerank_time = time.time() - rerank_time_start
 
         prompt = self._build_prompt(query_text, final_chunks)
 
@@ -262,3 +279,16 @@ ANSWER (with citations, following all rules and the example format):"""
             "timings_ms": timings,
             "warnings": [warning, "fallback"]
         }
+
+    def _log_chunks(self, chunks: List[Dict], stage: str, score_key: str):
+        print(f"\n--- [DEBUG: Chunks at '{stage}' stage] ---")
+        if not chunks:
+            print("No chunks to display.")
+            return
+            
+        for i, chunk in enumerate(chunks[:10]):  # Логируем только топ-10 для краткости
+            score = chunk.get(score_key, 0.0)
+            print(f"  - Chunk {i+1:2d} (score: {score:.4f}): {chunk['text'][:100]}...")
+        if len(chunks) > 10:
+            print(f"  ... and {len(chunks) - 10} more chunks.")
+        print("--- [END DEBUG] ---\n")
