@@ -25,7 +25,8 @@ class Settings(BaseSettings):
     LLM_TIMEOUT: int = 90
 
     # Embedding
-    EMBEDDING_MODEL: str = "BAAI/bge-m3"
+    EMBEDDING_MODEL: str = "microsoft/codebert-base"
+    EMBEDDING_DIM: int = 768
     EMBEDDING_DEVICE: str = "cpu"
     EMBEDDING_BATCH_SIZE: int = 32
     

@@ -10,7 +10,7 @@
 *   **Бэкенд API**: Python, FastAPI
 *   **Веб-интерфейс**: Python, Django
 *   **База данных**: PostgreSQL 15 + pgvector
-*   **ML-модели**: `BAAI/bge-m3` (эмбеддинги), `BAAI/bge-reranker-v2-m3` (ре-ранжирование)
+*   **ML-модели**: `microsoft/codebert-base` (эмбеддинги), `BAAI/bge-reranker-v2-m3` (ре-ранжирование)
 *   **Окружение**: `virtualenv` + `pip`
 
 **Архитектура**:

@@ -16,6 +16,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import DeclarativeBase, relationship
 
+from src.config import settings
+
 class Base(DeclarativeBase):
     pass
 
@@ -45,7 +47,7 @@ class Chunk(Base):
     chunk_index = Column(Integer, nullable=False)
     chunk_text = Column(Text, nullable=False)
     token_count = Column(Integer, nullable=False)
-    embedding = Column(Vector(1024), nullable=False)
+    embedding = Column(Vector(settings.EMBEDDING_DIM), nullable=False)
     # tsvector будет управляться триггером в БД, в модели его можно не объявлять
     meta_data = Column(JSON, nullable=False, default={})
     created_at = Column(DateTime(timezone=True), default=datetime.datetime.utcnow)
@@ -65,7 +67,7 @@ class QueryHistory(Base):
     id = Column(BigInteger, primary_key=True, autoincrement=True)
     user_id = Column(BigInteger, nullable=False, index=True) # Предполагается, что ID из Django auth_user
     query_text = Column(Text, nullable=False)
-    query_embedding = Column(Vector(1024), nullable=False)
+    query_embedding = Column(Vector(settings.EMBEDDING_DIM), nullable=False)
     response_md = Column(Text, nullable=False)
     sources_json = Column(JSON, nullable=False)
     llm_provider = Column(String, nullable=False)

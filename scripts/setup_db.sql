@@ -24,7 +24,9 @@ CREATE TABLE IF NOT EXISTS chunks (
   chunk_index  INT NOT NULL,
   chunk_text   TEXT NOT NULL,
   token_count  INT NOT NULL,
-  embedding    vector(1024) NOT NULL,
+  -- для microsoft/codebert-base:
+  embedding    vector(768) NOT NULL,
+  -- для BAAI/bge-m3 embedding:    vector(1024) NOT NULL,
   chunk_text_tsv tsvector, -- Для гибридного поиска
   meta_data     JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -61,7 +63,9 @@ CREATE TABLE IF NOT EXISTS query_history (
   id                BIGSERIAL PRIMARY KEY,
   user_id           BIGINT NOT NULL, -- FK на auth_user.id
   query_text        TEXT NOT NULL,
-  query_embedding   vector(1024) NOT NULL,
+  -- для microsoft/codebert-base:
+  query_embedding   vector(768) NOT NULL,
+  -- для BAAI/bge-m3 query_embedding:   vector(1024) NOT NULL,
   response_md       TEXT NOT NULL,
   sources_json      JSONB NOT NULL,
   llm_provider      TEXT NOT NULL,

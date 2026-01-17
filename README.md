@@ -28,8 +28,8 @@
 *   **Фронтенд**: Python 3.11+, Django
 *   **База данных**: PostgreSQL 15 + `pgvector`
 *   **ML-модели**:
-    *   Эмбеддинги: `BAAI/bge-m3`
-    *   Ре-ранжирование: `BAAI/bge-reranker-v2-m3`
+    *   Эмбеддинги: `microsoft/codebert-base` (возможно использовать BAAI/bge-m3, для этого необходимо исправить в БД размер вектора)
+    *   Ре-ранжирование: `BAAI/bge-reranker-v2-m3` (на устаревших GPU используется cross-encoder/ms-marco-MiniLM-L12-v2)
 *   **Окружение**: `virtualenv` + `pip`
 *   **Инструменты**: `ruff` (форматтер и линтер), `pytest` (тестирование)
 
