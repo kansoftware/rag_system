@@ -49,6 +49,23 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 ```
 
+#### Установка для GPU
+
+Проект поддерживает два варианта установки зависимостей для GPU:
+
+-   **Для современных GPU (CUDA 12+):**
+    ```bash
+    pip install -e ".[dev,gpu-modern]"
+    ```
+
+-   **Для устаревших GPU (CUDA 11.7, `sm_61`):**
+    ```bash
+    pip install -e ".[dev,gpu-legacy]" --extra-index-url https://download.pytorch.org/whl/cu117
+    ```
+    После установки не забудьте установить `RERANKER_ONNX=True` в вашем `.env` файле, чтобы включить ONNX-ускорение.
+
+    **Важно:** В режиме `gpu-legacy` будет работать только модель ре-ранжирования. Модель для создания эмбеддингов (`FlagEmbedding`) требует более новых версий библиотек и не будет установлена.
+
 **Запуск сервисов для разработки**:
 *   **FastAPI API**:
     ```bash

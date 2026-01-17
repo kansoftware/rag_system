@@ -13,10 +13,6 @@ dependencies = [
     "pydantic>=2.5.0",
     "pydantic-settings>=2.1.0",
     "python-dotenv>=1.0.0",
-    "sentence-transformers>=2.3.0",
-    "FlagEmbedding>=1.2.0",
-    "transformers>=4.36.0",
-    "torch>=2.1.0",
     "openai>=1.10.0",
     "beautifulsoup4>=4.12.0",
     "trafilatura>=1.6.0",
@@ -36,6 +32,23 @@ dev = [
     "ruff>=0.1.9",
     "mypy>=1.8.0",
     "pytest-mock>=3.12.0"
+]
+# Зависимости для современных GPU (CUDA 12+)
+gpu-modern = [
+    "torch>=2.1.0",
+    "sentence-transformers>=2.3.0",
+    "FlagEmbedding>=1.2.0",
+    "transformers>=4.36.0",
+]
+# Зависимости для старых GPU (CUDA 11.7, sm_61)
+gpu-legacy = [
+    "torch==1.13.1",
+    "sentence-transformers<2.3.0",
+    "transformers~=4.28.0",
+    "tokenizers~=0.13.3",
+    "huggingface-hub==0.17.3",
+    "onnxruntime-gpu==1.16.3",
+    "numpy<2",
 ]
 
 [build-system]

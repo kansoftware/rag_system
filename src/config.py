@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-import os
+# import os
 
 
 class Settings(BaseSettings):
@@ -30,9 +30,10 @@ class Settings(BaseSettings):
     EMBEDDING_BATCH_SIZE: int = 32
     
     # Reranker
-    RERANKER_MODEL: str = "sentence-transformers/ms-marco-MiniLM-L-12-v2"
+    RERANKER_MODEL: str = "cross-encoder/ms-marco-MiniLM-L12-v2" # BAAI/bge-reranker-v2-m3 для современного железа
     RERANKER_DEVICE: str = "cpu"
     RERANKER_BATCH_SIZE: int = 16
+    RERANKER_ONNX: bool = False
 
     # RAG
     TOP_K_INITIAL: int = 30
