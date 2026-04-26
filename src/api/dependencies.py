@@ -16,5 +16,5 @@ def get_rag_engine() -> RAGEngine:
     return RAGEngine(
         embedding_model=get_embedding_model(),
         reranker_model=get_reranker_model(),
-        llm_client=get_llm_client()
+        llm_client=get_llm_client(),
     )

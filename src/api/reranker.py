@@ -1,10 +1,17 @@
+import logging
 from typing import Dict, List
+
 import torch
 from sentence_transformers import CrossEncoder
-from pathlib import Path
-import onnxruntime
 
 from src.config import settings
+
+logger = logging.getLogger(__name__)
+
+try:
+    import onnxruntime
+except Exception as e:
+    logger.warning("Could not import onnxruntime: %s", e)
 
 
 class RerankerModel:
@@ -12,6 +19,7 @@ class RerankerModel:
     Класс-обертка для модели ре-ранжирования, использующая sentence-transformers.
     Поддерживает как стандартные модели PyTorch, так и оптимизированные ONNX-модели.
     """
+
     def __init__(self):
         from numpy import __version__ as numpy_version
         from packaging.version import parse
@@ -20,7 +28,9 @@ class RerankerModel:
         # Принудительно используем 'bge-reranker-base' для старого окружения,
         # так как 'bge-reranker-v2-m3' не имеет стандартных файлов pytorch_model.bin
         if parse(numpy_version) < parse("2.0.0"):
-            print("Legacy environment detected (numpy < 2.0). Forcing reranker model to 'cross-encoder/ms-marco-MiniLM-L12-v2'.")
+            logger.info(
+                "Legacy environment detected (numpy < 2.0). Forcing reranker model to 'cross-encoder/ms-marco-MiniLM-L12-v2'."
+            )
             # self.model_name = "BAAI/bge-reranker-base"
             self.model_name = "cross-encoder/ms-marco-MiniLM-L12-v2"
 
@@ -28,40 +38,71 @@ class RerankerModel:
         self.batch_size = settings.RERANKER_BATCH_SIZE
         self.use_onnx = settings.RERANKER_ONNX
 
-        if self.device == 'cuda' and not torch.cuda.is_available():
-            print("Warning: CUDA is not available for reranker. Falling back to CPU.")
-            self.device = 'cpu'
+        if self.device == "cuda" and not torch.cuda.is_available():
+            logger.warning("CUDA is not available for reranker. Falling back to CPU.")
+            self.device = "cpu"
 
         model_to_load = self.model_name
-        
+
         if self.use_onnx:
-            print("ONNX runtime enabled for reranker.")
+            logger.info("ONNX runtime enabled for reranker.")
             try:
                 from huggingface_hub import hf_hub_download
+
                 # Используем hf_hub_download для поиска ONNX-модели в кеше
-                onnx_path = hf_hub_download(repo_id=self.model_name, filename="model.onnx")
+                onnx_path = hf_hub_download(
+                    repo_id=self.model_name, filename="model.onnx"
+                )
                 model_to_load = onnx_path
-                print(f"Loading ONNX reranker model from {model_to_load}...")
+                logger.info("Loading ONNX reranker model from %s", model_to_load)
 
                 # Проверяем, доступен ли CUDA провайдер для ONNX
-                if self.device == 'cuda' and 'CUDAExecutionProvider' not in onnxruntime.get_available_providers():
-                    print("Warning: ONNX runtime CUDA provider is not available. Falling back to CPU.")
-                    self.device = 'cpu'
+                if (
+                    self.device == "cuda"
+                    and "CUDAExecutionProvider"
+                    not in onnxruntime.get_available_providers()
+                ):
+                    logger.warning(
+                        "ONNX runtime CUDA provider is not available. Falling back to CPU."
+                    )
+                    self.device = "cpu"
             except Exception as e:
-                print(f"Warning: Could not download or find ONNX model. Falling back to PyTorch. Error: {e}")
+                logger.warning(
+                    "Could not download or find ONNX model. Falling back to PyTorch. Error: %s", e
+                )
                 self.use_onnx = False
 
-        print(f"Initializing reranker model {self.model_name} on device '{self.device}'...")
+        logger.info(
+            "Initializing reranker model %s on device '%s'...",
+            self.model_name,
+            self.device,
+        )
         # Если используем ONNX, device должен быть None, так как провайдер указывается при создании сессии
         device_for_encoder = self.device if not self.use_onnx else None
-        self.model = CrossEncoder(model_to_load, device=device_for_encoder, automodel_args={'trust_remote_code': True})
-        
-        if self.use_onnx and hasattr(self.model, 'model') and hasattr(self.model.model, 'session'):
-             # Явное указание провайдера для ONNX
-            provider = 'CUDAExecutionProvider' if self.device == 'cuda' else 'CPUExecutionProvider'
-            self.model.model.session.set_providers([provider])
+        self.model = CrossEncoder(
+            model_to_load,
+            device=device_for_encoder,
+            automodel_args={"trust_remote_code": True},
+        )
 
-        print("Reranker model loaded successfully.")
+        if self.use_onnx:
+            try:
+                if (
+                    hasattr(self.model, "model")
+                    and hasattr(self.model.model, "session")
+                    and self.model.model.session is not None
+                ):
+                    provider = (
+                        "CUDAExecutionProvider"
+                        if self.device == "cuda"
+                        else "CPUExecutionProvider"
+                    )
+                    self.model.model.session.set_providers([provider])
+            except AttributeError as e:
+                logger.warning("ONNX session provider configuration failed: %s", e)
+                self.use_onnx = False
+
+        logger.info("Reranker model loaded successfully.")
 
     def rerank(self, query: str, chunks: List[Dict]) -> List[Dict]:
         """
@@ -71,40 +112,40 @@ class RerankerModel:
             return []
 
         # sentence-transformers ожидает пары [запрос, текст_чанка]
-        pairs = [(query, chunk['text']) for chunk in chunks if chunk.get('text')]
-        
+        pairs = [(query, chunk["text"]) for chunk in chunks if chunk.get("text")]
+
         if not pairs:
-            print("Warning: No valid (query, text) pairs found to rerank.")
+            logger.warning("No valid (query, text) pairs found to rerank.")
             for chunk in chunks:
-                chunk['rerank_score'] = 0.0
+                chunk["rerank_score"] = 0.0
             return chunks
 
-        print(f"Reranking {len(pairs)} candidates with cross-encoder...")
-        
+        logger.info("Reranking %d candidates with cross-encoder...", len(pairs))
+
         # Вычисляем оценки релевантности. Cross-encoder напрямую возвращает оценки.
         scores = self.model.predict(
-            pairs,
-            show_progress_bar=False,
-            batch_size=self.batch_size
+            pairs, show_progress_bar=False, batch_size=self.batch_size
         )
 
         # Сопоставляем оценки с чанками, которые были отправлены на обработку
-        valid_chunks = [chunk for chunk in chunks if chunk.get('text')]
-        for chunk, score in zip(valid_chunks, scores):
-            chunk['rerank_score'] = float(score)
+        valid_chunks = [chunk for chunk in chunks if chunk.get("text")]
+        for chunk, score in zip(valid_chunks, scores, strict=True):
+            chunk["rerank_score"] = float(score)
 
         # Для отфильтрованных (невалидных) чанков устанавливаем score в 0
         for chunk in chunks:
-            if 'rerank_score' not in chunk:
-                chunk['rerank_score'] = 0.0
+            if "rerank_score" not in chunk:
+                chunk["rerank_score"] = 0.0
 
         # Сортируем чанки по убыванию rerank_score
-        reranked_chunks = sorted(chunks, key=lambda x: x['rerank_score'], reverse=True)
-        
-        print("Reranking complete.")
+        reranked_chunks = sorted(chunks, key=lambda x: x["rerank_score"], reverse=True)
+
+        logger.info("Reranking complete.")
         return reranked_chunks
 
+
 _reranker_model = None
+
 
 def get_reranker_model() -> RerankerModel:
     """Возвращает синглтон-экземпляр модели ре-ранжирования."""

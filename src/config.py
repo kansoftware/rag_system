@@ -1,13 +1,12 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
 # import os
 
 
 class Settings(BaseSettings):
     # Конфигурация модели Pydantic для чтения из .env файла
     model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore"
+        env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )
 
     # PostgreSQL
@@ -23,15 +22,16 @@ class Settings(BaseSettings):
     LLM_API_KEY: str = "lm-studio"
     LLM_MODEL: str = "local-model"
     LLM_TIMEOUT: int = 90
+    LLM_MAX_CONCURRENT_REQUESTS: int = 5
 
     # Embedding
     EMBEDDING_MODEL: str = "microsoft/codebert-base"
     EMBEDDING_DIM: int = 768
     EMBEDDING_DEVICE: str = "cpu"
     EMBEDDING_BATCH_SIZE: int = 32
-    
+
     # Reranker
-    RERANKER_MODEL: str = "cross-encoder/ms-marco-MiniLM-L12-v2" # BAAI/bge-reranker-v2-m3 для современного железа
+    RERANKER_MODEL: str = "cross-encoder/ms-marco-MiniLM-L12-v2"  # BAAI/bge-reranker-v2-m3 для современного железа
     RERANKER_DEVICE: str = "cpu"
     RERANKER_BATCH_SIZE: int = 16
     RERANKER_ONNX: bool = False
@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     TOP_K_FINAL: int = 7
     MIN_CONFIDENCE: float = 0.7
     ENABLE_RERANKER: bool = True
-    
+
     # Chunking
     CHUNK_SIZE: int = 700
     CHUNK_OVERLAP: int = 100
@@ -58,6 +58,7 @@ class Settings(BaseSettings):
     @property
     def DATABASE_URL(self) -> str:
         return f"postgresql+psycopg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+
 
 # Создаем единственный экземпляр настроек, который будет использоваться во всем приложении
 settings = Settings()

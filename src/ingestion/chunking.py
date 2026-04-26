@@ -9,11 +9,12 @@ class MarkdownChunker:
     "Умный" чанкер для Markdown-документов.
     Разбивает текст по заголовкам и сохраняет целостность блоков кода.
     """
+
     def __init__(
         self,
         chunk_size: int = 1500,
         chunk_overlap: int = 300,
-        model_name: str = "BAAI/bge-m3"
+        model_name: str = "BAAI/bge-m3",
     ):
         if chunk_overlap >= chunk_size:
             raise ValueError("chunk_overlap must be smaller than chunk_size")
@@ -26,21 +27,23 @@ class MarkdownChunker:
         """Подсчитывает количество токенов в тексте."""
         return len(self.tokenizer.encode(text, add_special_tokens=False))
 
-    def chunk(self, document_text: str, doc_metadata: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def chunk(
+        self, document_text: str, doc_metadata: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
         """
         Основной метод, который разбивает документ на чанки.
         """
         chunks = []
-        
+
         # 1. Разделение на секции по заголовкам ## и ###
-        sections = re.split(r'(^#{2,3}\s.*$)', document_text, flags=re.MULTILINE)
-        
+        sections = re.split(r"(^#{2,3}\s.*$)", document_text, flags=re.MULTILINE)
+
         current_header = ""
         current_text = ""
-        
+
         processed_sections = []
         for part in sections:
-            if re.match(r'^#{2,3}\s.*$', part):
+            if re.match(r"^#{2,3}\s.*$", part):
                 if current_text.strip():
                     processed_sections.append((current_header, current_text.strip()))
                 current_header = part.strip()
@@ -53,31 +56,43 @@ class MarkdownChunker:
         chunk_index = 0
         for header, text in processed_sections:
             if self._count_tokens(text) <= self.chunk_size:
-                chunks.append({
-                    "text": f"{header}\n{text}" if header else text,
-                    "metadata": {"header": header, "chunk_index": chunk_index, **doc_metadata}
-                })
+                chunks.append(
+                    {
+                        "text": f"{header}\n{text}" if header else text,
+                        "metadata": {
+                            "header": header,
+                            "chunk_index": chunk_index,
+                            **doc_metadata,
+                        },
+                    }
+                )
                 chunk_index += 1
                 continue
 
             sub_chunks = self._split_text_with_code_awareness(text)
-            
+
             for sub_chunk in sub_chunks:
-                chunks.append({
-                    "text": f"{header}\n{sub_chunk}" if header else sub_chunk,
-                    "metadata": {"header": header, "chunk_index": chunk_index, **doc_metadata}
-                })
+                chunks.append(
+                    {
+                        "text": f"{header}\n{sub_chunk}" if header else sub_chunk,
+                        "metadata": {
+                            "header": header,
+                            "chunk_index": chunk_index,
+                            **doc_metadata,
+                        },
+                    }
+                )
                 chunk_index += 1
-        
+
         return self._apply_overlap(chunks)
 
     def _split_text_with_code_awareness(self, text: str) -> List[str]:
-        parts = re.split(r'(```[\s\S]*?```)', text)
+        parts = re.split(r"(```[\s\S]*?```)", text)
         chunks = []
         current_chunk = ""
 
         for part in parts:
-            if part.startswith('```'):
+            if part.startswith("```"):
                 if self._count_tokens(part) > self.chunk_size:
                     if current_chunk:
                         chunks.append(current_chunk)
@@ -86,17 +101,17 @@ class MarkdownChunker:
                 else:
                     current_chunk += part
             else:
-                sentences = re.split(r'(?<=[.!?])\s+', part)
+                sentences = re.split(r"(?<=[.!?])\s+", part)
                 for sentence in sentences:
                     if self._count_tokens(current_chunk + sentence) > self.chunk_size:
                         chunks.append(current_chunk)
                         current_chunk = sentence
                     else:
                         current_chunk += " " + sentence
-        
+
         if current_chunk:
             chunks.append(current_chunk)
-            
+
         return [c.strip() for c in chunks if c.strip()]
 
     def _apply_overlap(self, chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -106,6 +121,12 @@ class MarkdownChunker:
                 for chunk in chunks
             ]
 
+        # Предварительно вычисляем токены для каждого чанка, чтобы избежать повторных вызовов tokenizer.encode
+        chunk_tokens_list = [
+            self.tokenizer.encode(chunk["text"], add_special_tokens=False)
+            for chunk in chunks
+        ]
+
         overlapped_chunks = []
         for i in range(len(chunks)):
             current_chunk_data = chunks[i]
@@ -113,34 +134,37 @@ class MarkdownChunker:
 
             # Добавляем overlap слева
             if i > 0:
-                prev_chunk_text = chunks[i-1]["text"]
-                overlap_tokens = self.tokenizer.encode(prev_chunk_text, add_special_tokens=False)[-self.chunk_overlap:]
-                overlap_text = self.tokenizer.decode(overlap_tokens, skip_special_tokens=True)
+                prev_tokens = chunk_tokens_list[i - 1]
+                overlap_tokens = prev_tokens[-self.chunk_overlap :]
+                overlap_text = self.tokenizer.decode(
+                    overlap_tokens, skip_special_tokens=True
+                )
                 final_text = f"{overlap_text}\n...\n{final_text}"
 
             # Добавляем overlap справа, контролируя размер
             if i < len(chunks) - 1:
-                next_chunk_text = chunks[i+1]["text"]
+                next_tokens = chunk_tokens_list[i + 1]
                 max_len = self.chunk_size + self.chunk_overlap
-                
+
+                overlap_suffix_tokens = next_tokens[: self.chunk_overlap]
                 overlap_suffix = "\n...\n" + self.tokenizer.decode(
-                    self.tokenizer.encode(next_chunk_text, add_special_tokens=False)[:self.chunk_overlap]
+                    overlap_suffix_tokens, skip_special_tokens=True
                 )
-                
-                # Добавляем суффикс и обрезаем, если нужно
+
                 temp_text = final_text + overlap_suffix
-                
-                # Простой строковый срез, если превысили лимит.
-                # Это не идеально, но сохраняет маркеры.
+
+                # Обрезаем, если превысили лимит, избегая многократного вызова _count_tokens
+                # Используем приблизительный подсчет символов, так как точный подсчет токенов дорог
+                # Пока оставляем while с _count_tokens, но это меньше вызывает encode, т.к. основной груз был на предварительной токенизации
                 while self._count_tokens(temp_text) > max_len:
-                    temp_text = temp_text[:-10] # Обрезаем по 10 символов
-                
+                    temp_text = temp_text[:-10]
+
                 final_text = temp_text
 
             final_chunk_data = {
                 "text": final_text,
                 "metadata": current_chunk_data["metadata"],
-                "token_count": self._count_tokens(final_text)
+                "token_count": self._count_tokens(final_text),
             }
             overlapped_chunks.append(final_chunk_data)
 

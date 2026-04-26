@@ -209,3 +209,5 @@ __marimo__/
 
 project_docs/
 .kilocode/
+.kilo/
+*.db

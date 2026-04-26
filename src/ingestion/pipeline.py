@@ -1,16 +1,19 @@
+import logging
 from pathlib import Path
 from typing import List
 
 from sqlalchemy.orm import Session
 from tqdm import tqdm
 
-from src.db.models import Chunk, Document
 from src.config import settings
+from src.db.models import Chunk, Document
 from src.db.session import SessionLocal
 
 from .chunking import MarkdownChunker
 from .dedup import Deduplicator, compute_content_hash
 from .embedding import get_embedding_model
+
+logger = logging.getLogger(__name__)
 
 
 class IngestionPipeline:
@@ -27,15 +30,17 @@ class IngestionPipeline:
         """
         Запускает полный конвейер обработки и загрузки документов.
         """
-        print(f"Starting ingestion for {len(file_paths)} files from domain '{domain}'...")
-        
+        logger.info(
+            "Starting ingestion for %d files from domain '%s'...", len(file_paths), domain
+        )
+
         new_docs_count = 0
         skipped_docs_count = 0
         total_chunks_count = 0
 
         for path in tqdm(file_paths, desc="Processing files"):
             try:
-                with open(path, 'r', encoding='utf-8') as f:
+                with open(path, "r", encoding="utf-8") as f:
                     content = f.read()
 
                 content_hash = compute_content_hash(content)
@@ -51,14 +56,14 @@ class IngestionPipeline:
                     domain=domain,
                     content_hash=content_hash,
                     full_text=content,
-                    metadata={"source": "markdown_files"}
+                    metadata={"source": "markdown_files"},
                 )
                 self.db.add(document)
-                self.db.flush() 
+                self.db.flush()
 
                 doc_metadata = {"document_id": document.id, "domain": domain}
                 chunks_data = self.chunker.chunk(content, doc_metadata)
-                
+
                 if not chunks_data:
                     continue
 
@@ -72,21 +77,21 @@ class IngestionPipeline:
                         chunk_text=chunk_data["text"],
                         token_count=chunk_data["token_count"],
                         embedding=embeddings[i],
-                        metadata=chunk_data["metadata"]
+                        metadata=chunk_data["metadata"],
                     )
                     self.db.add(chunk)
-                
+
                 self.db.commit()
                 self.deduplicator.add_hash(content_hash)
                 new_docs_count += 1
                 total_chunks_count += len(chunks_data)
 
             except Exception as e:
-                print(f"Error processing file {path}: {e}")
+                logger.error("Error processing file %s: %s", path, e)
                 self.db.rollback()
 
         self.db.close()
-        print("\n--- Ingestion Complete ---")
-        print(f"New documents processed: {new_docs_count}")
-        print(f"Duplicate documents skipped: {skipped_docs_count}")
-        print(f"Total chunks created: {total_chunks_count}")
+        logger.info("\n--- Ingestion Complete ---")
+        logger.info("New documents processed: %d", new_docs_count)
+        logger.info("Duplicate documents skipped: %d", skipped_docs_count)
+        logger.info("Total chunks created: %d", total_chunks_count)

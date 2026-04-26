@@ -2,7 +2,7 @@ import os
 import sys
 
 # Добавляем корневую директорию проекта в sys.path ПЕРЕД всеми остальными импортами
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 import pytest
 from sqlalchemy import create_engine
@@ -12,11 +12,14 @@ from src.api.main import app
 from src.db.models import Base
 from src.db.session import get_db
 
-# --- Настройка тестовой базы данных SQLite in-memory ---
+# --- Настройка тестовой базы данных SQLite file-based ---
 
-SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+SQLALCHEMY_DATABASE_URL = "sqlite:///./test_rag.db"
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+)
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
 
 @pytest.fixture(scope="function")
 def test_db():
@@ -31,11 +34,13 @@ def test_db():
         db.close()
         Base.metadata.drop_all(bind=engine)
 
-@pytest.fixture(scope="function", autouse=True)
+
+@pytest.fixture(scope="function")
 def override_get_db(test_db):
     """
     Автоматически подменяет зависимость get_db на тестовую сессию.
     """
+
     def _override_get_db():
         try:
             yield test_db
